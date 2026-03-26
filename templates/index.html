@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Groundwater Prediction – Rajasthan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/css/style.css"/>
+</head>
+<body>
+
+<!-- ▌ NAV -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="nav-icon">💧</span>
+    <span class="nav-title">AquaPredict AI</span>
+    <span class="nav-sub">Rajasthan Groundwater Intelligence</span>
+  </div>
+  <div class="nav-pills">
+    <button class="pill active" id="pill-predict"   onclick="showSection('predict')">Predict</button>
+    <button class="pill"        id="pill-history"   onclick="showSection('history')">Historical</button>
+    <button class="pill"        id="pill-compare"   onclick="showSection('compare')">Compare</button>
+    <button class="pill"        id="pill-forecast"  onclick="showSection('forecast')">Forecast</button>
+  </div>
+</nav>
+
+<!-- ▌ METRICS BAR -->
+<div class="metrics-bar">
+  <div class="metric-card"><div class="metric-label">Model Accuracy (R²)</div><div class="metric-value" id="m-r2">—</div></div>
+  <div class="metric-card"><div class="metric-label">RMSE (meters)</div><div class="metric-value" id="m-rmse">—</div></div>
+  <div class="metric-card"><div class="metric-label">MAE (meters)</div><div class="metric-value" id="m-mae">—</div></div>
+  <div class="metric-card"><div class="metric-label">Algorithm</div><div class="metric-value">Random Forest</div></div>
+  <div class="metric-card"><div class="metric-label">Districts Covered</div><div class="metric-value" id="m-districts">19</div></div>
+  <div class="metric-card"><div class="metric-label">Dataset Span</div><div class="metric-value">1990 – 2025</div></div>
+</div>
+
+<!-- ═══ PREDICT ═══ -->
+<section id="section-predict" class="section active">
+  <div class="section-header">
+    <h1>🔮 Groundwater Level Predictor</h1>
+    <p>Enter district parameters and get an instant AI-powered depth forecast for any arid region of Rajasthan</p>
+  </div>
+  <div class="predict-grid">
+    <div class="card form-card">
+      <h2 class="card-title">Input Parameters</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label>District</label>
+          <select id="p-district" onchange="updateDistrictValues()">
+            <optgroup label="Hyper-Arid / Core Thar Desert">
+              <option>Jaisalmer</option>
+              <option>Barmer</option>
+              <option>Bikaner</option>
+            </optgroup>
+            <optgroup label="Arid Western Rajasthan">
+              <option>Jodhpur</option>
+              <option>Nagaur</option>
+              <option>Sri Ganganagar</option>
+              <option>Hanumangarh</option>
+              <option>Churu</option>
+              <option>Pali</option>
+              <option>Jalor</option>
+            </optgroup>
+            <optgroup label="Arid / Semi-Arid Transition">
+              <option>Sikar</option>
+              <option>Jhunjhunu</option>
+            </optgroup>
+            <optgroup label="Semi-Arid (CAZRI Reclassified)">
+              <option>Ajmer</option>
+              <option>Bhilwara</option>
+              <option>Sirohi</option>
+              <option>Rajsamand</option>
+              <option>Tonk</option>
+              <option>Jaipur</option>
+              <option>Alwar</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field">
+          <label>Target Year</label>
+          <input type="number" id="p-year" value="2030" min="2025" max="2060"/>
+        </div>
+        <div class="field">
+          <label>Annual Rainfall (mm)</label>
+          <input type="number" id="p-rainfall" value="150" min="10" max="800" step="0.1"/>
+        </div>
+        <div class="field">
+          <label>Max Summer Temp (°C)</label>
+          <input type="number" id="p-temp" value="46" min="30" max="55" step="0.1"/>
+        </div>
+        <div class="field">
+          <label>Population</label>
+          <input type="number" id="p-pop" value="2000000" min="100000" step="1000"/>
+        </div>
+        <div class="field">
+          <label>Agriculture Area (Ha)</label>
+          <input type="number" id="p-agri" value="350000" min="10000" step="1000"/>
+        </div>
+      </div>
+      <button class="btn-predict" onclick="runPredict()">⚡ Run AI Prediction</button>
+    </div>
+
+    <div class="card result-card">
+      <h2 class="card-title">Prediction Result</h2>
+      <div class="result-idle" id="result-idle">
+        <div class="idle-icon">🌊</div>
+        <p>Fill in the parameters and click <strong>Run AI Prediction</strong></p>
+      </div>
+      <div class="result-output hidden" id="result-output">
+        <div class="gw-depth-ring">
+          <svg viewBox="0 0 200 200">
+            <defs>
+              <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#2563eb"/>
+                <stop offset="100%" stop-color="#3b82f6"/>
+              </linearGradient>
+            </defs>
+            <circle cx="100" cy="100" r="85" class="ring-bg"/>
+            <circle cx="100" cy="100" r="85" class="ring-fill" id="ring-fill"
+                    stroke-dasharray="534" stroke-dashoffset="534"/>
+          </svg>
+          <div class="ring-label">
+            <span class="depth-val" id="depth-val">—</span>
+            <span class="depth-unit">meters deep</span>
+          </div>
+        </div>
+        <div class="risk-badge" id="risk-badge">—</div>
+        <div class="result-details">
+          <div class="detail-row"><span>District</span><strong id="r-district">—</strong></div>
+          <div class="detail-row"><span>Year</span><strong id="r-year">—</strong></div>
+          <div class="detail-row"><span>Water Table Depth</span><strong id="r-depth">—</strong></div>
+          <div class="detail-row"><span>Risk Level</span><strong id="r-risk">—</strong></div>
+        </div>
+        <div class="risk-bar-wrap"><div class="risk-bar" id="risk-bar-fill"></div></div>
+        <p class="risk-caption" id="risk-caption"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HISTORY ═══ -->
+<section id="section-history" class="section">
+  <div class="section-header">
+    <h1>📈 Historical Groundwater Trends</h1>
+    <p>Explore how water tables have changed across all 19 arid regions over 35 years</p>
+  </div>
+  <div class="card chart-card">
+    <div class="chart-controls">
+      <label>Select District:</label>
+      <select id="h-district" onchange="loadHistory()">
+        <optgroup label="Hyper-Arid / Core Thar Desert">
+          <option>Jaisalmer</option><option>Barmer</option><option>Bikaner</option>
+        </optgroup>
+        <optgroup label="Arid Western Rajasthan">
+          <option>Jodhpur</option><option>Nagaur</option><option>Sri Ganganagar</option>
+          <option>Hanumangarh</option><option>Churu</option><option>Pali</option><option>Jalor</option>
+        </optgroup>
+        <optgroup label="Arid / Semi-Arid Transition">
+          <option>Sikar</option><option>Jhunjhunu</option>
+        </optgroup>
+        <optgroup label="Semi-Arid (CAZRI Reclassified)">
+          <option>Ajmer</option><option>Bhilwara</option><option>Sirohi</option>
+          <option>Rajsamand</option><option>Tonk</option><option>Jaipur</option><option>Alwar</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="chart-wrap"><canvas id="historyChart"></canvas></div>
+    <div class="stat-pills" id="hist-stats"></div>
+  </div>
+</section>
+
+<!-- ═══ COMPARE ═══ -->
+<section id="section-compare" class="section">
+  <div class="section-header">
+    <h1>⚖️ District Comparison — 2025</h1>
+    <p>Side-by-side groundwater depth comparison across all 19 arid districts as of 2025</p>
+  </div>
+  <div class="card chart-card">
+    <div class="chart-wrap" style="height:420px"><canvas id="compareChart"></canvas></div>
+    <div class="stat-pills" id="compare-stats" style="margin-top:1.2rem"></div>
+  </div>
+</section>
+
+<!-- ═══ FORECAST ═══ -->
+<section id="section-forecast" class="section">
+  <div class="section-header">
+    <h1>🚀 Future Forecast</h1>
+    <p>AI-powered groundwater depletion trajectory for any arid district — up to 30 years ahead</p>
+  </div>
+  <div class="card chart-card">
+    <div class="chart-controls">
+      <label>District:</label>
+      <select id="f-district">
+        <optgroup label="Hyper-Arid / Core Thar Desert">
+          <option>Jaisalmer</option><option>Barmer</option><option>Bikaner</option>
+        </optgroup>
+        <optgroup label="Arid Western Rajasthan">
+          <option>Jodhpur</option><option>Nagaur</option><option>Sri Ganganagar</option>
+          <option>Hanumangarh</option><option>Churu</option><option>Pali</option><option>Jalor</option>
+        </optgroup>
+        <optgroup label="Arid / Semi-Arid Transition">
+          <option>Sikar</option><option>Jhunjhunu</option>
+        </optgroup>
+        <optgroup label="Semi-Arid (CAZRI Reclassified)">
+          <option>Ajmer</option><option>Bhilwara</option><option>Sirohi</option>
+          <option>Rajsamand</option><option>Tonk</option><option>Jaipur</option><option>Alwar</option>
+        </optgroup>
+      </select>
+      <label style="margin-left:1.5rem">Forecast Years:</label>
+      <select id="f-years">
+        <option value="5">5 years</option>
+        <option value="10" selected>10 years</option>
+        <option value="20">20 years</option>
+        <option value="30">30 years</option>
+      </select>
+      <button class="btn-sm" onclick="loadForecast()">Run Forecast</button>
+    </div>
+    <div class="chart-wrap"><canvas id="forecastChart"></canvas></div>
+    <div class="stat-pills" id="forecast-stats"></div>
+  </div>
+</section>
+
+<footer class="footer">
+  💧 AquaPredict AI &nbsp;|&nbsp; 19 Arid & Semi-Arid Districts of Rajasthan &nbsp;|&nbsp; Random Forest ML Model &nbsp;|&nbsp; CAZRI Classification
+</footer>
+
+<script src="/static/js/main.js"></script>
+</body>
+</html>
